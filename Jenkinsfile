@@ -1,15 +1,8 @@
 pipeline {
-  agent {
-    docker {
-      image "mcr.microsoft.com/playwright:v1.59.1-noble"
-      args "--ipc=host --user root"
-      reuseNode true
-    }
-  }
+  agent any
 
   options {
     timestamps()
-    ansiColor("xterm")
   }
 
   stages {
@@ -19,18 +12,20 @@ pipeline {
       }
     }
 
-    stage("Install dependencies") {
-      steps {
-        sh "npm ci"
-      }
-    }
-
-    stage("Run tests") {
+    stage("Run tests in Playwright Docker") {
       environment {
         CI = "true"
       }
       steps {
-        sh "npm test"
+        sh """
+          docker run --rm \
+            --ipc=host \
+            -e CI=true \
+            -v "\$PWD:/work" \
+            -w /work \
+            mcr.microsoft.com/playwright:v1.59.1-noble \
+            /bin/bash -lc "npm ci && npm test"
+        """
       }
     }
   }
