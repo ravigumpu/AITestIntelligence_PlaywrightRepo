@@ -24,7 +24,7 @@ pipeline {
             -v "${env.WORKSPACE}:/work" \
             -w /work \
             mcr.microsoft.com/playwright:v1.59.1-noble \
-            bash -c "npm ci && npm test"
+            bash -ec 'npm ci && npm test'
         """
       }
     }
