@@ -21,10 +21,10 @@ pipeline {
           docker run --rm \
             --ipc=host \
             -e CI=true \
-            -v "\$PWD:/work" \
+            -v "${env.WORKSPACE}:/work" \
             -w /work \
             mcr.microsoft.com/playwright:v1.59.1-noble \
-            /bin/bash -lc "npm ci && npm test"
+            bash -c "npm ci && npm test"
         """
       }
     }
