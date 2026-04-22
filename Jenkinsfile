@@ -23,8 +23,17 @@ pipeline {
             -e CI=true \
             -v "${env.WORKSPACE}:/work" \
             -w /work \
+            --entrypoint npm \
             mcr.microsoft.com/playwright:v1.59.1-noble \
-            bash -ec 'npm ci && npm test'
+            ci
+          docker run --rm \
+            --ipc=host \
+            -e CI=true \
+            -v "${env.WORKSPACE}:/work" \
+            -w /work \
+            --entrypoint npm \
+            mcr.microsoft.com/playwright:v1.59.1-noble \
+            test
         """
       }
     }
