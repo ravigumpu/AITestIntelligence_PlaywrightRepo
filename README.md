@@ -41,7 +41,19 @@ Use the sample agent image (Node + npm + Docker CLI on top of Jenkins):
 docker build -f jenkins/Dockerfile -t playwright-jenkins .
 ```
 
-Point your `docker-compose.yml` at `playwright-jenkins` instead of plain `jenkins/jenkins`, rebuild, and run the job again.
+Point your `docker-compose.yml` at **`playwright-jenkins`** instead of plain `jenkins/jenkins` (or replace your `build:` section so it builds `jenkins/Dockerfile`), then recreate the container:
+
+```bash
+docker compose up -d --force-recreate
+```
+
+Verify Node exists **inside** Jenkins before triggering the job:
+
+```bash
+docker compose exec jenkins bash -c 'node -v && npm -v'
+```
+
+If you see **`npm: not found`** in the job log but the verify command works, restart Jenkins once after the image change.
 
 Then in Jenkins:
 
