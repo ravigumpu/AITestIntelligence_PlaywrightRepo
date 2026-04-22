@@ -31,14 +31,17 @@ The Jenkins pipeline publishes:
 
 ## Running from local Dockerized Jenkins
 
-The `Jenkinsfile` is configured to run inside:
+The pipeline runs **`npm ci`**, **`npx playwright install`**, and **`npm test` on the Jenkins agent itself** (same filesystem as the Git checkout).
 
-- `mcr.microsoft.com/playwright:v1.59.1-noble`
+That avoids bind-mounting the workspace into a nested `docker run`, which often fails when Jenkins runs inside Docker but uses the host Docker socket: the daemon resolves volume paths on the host, so `/var/jenkins_home/workspace/...` may not map to your checkout and `package-lock.json` appears missing.
 
-So your Jenkins instance needs:
+Use the sample agent image (Node + npm + Docker CLI on top of Jenkins):
 
-- Docker Pipeline plugin
-- Access to a Docker daemon (commonly by mounting `/var/run/docker.sock` into the Jenkins container)
+```bash
+docker build -f jenkins/Dockerfile -t playwright-jenkins .
+```
+
+Point your `docker-compose.yml` at `playwright-jenkins` instead of plain `jenkins/jenkins`, rebuild, and run the job again.
 
 Then in Jenkins:
 
@@ -49,7 +52,5 @@ Then in Jenkins:
 
 ## Notes for Jenkins agents
 
-- Jenkins agent must have Node.js available.
-- If your Jenkins nodes do not have the required system libraries for browsers, either:
-  - preinstall browser dependencies on the node, or
-  - run the pipeline in a Playwright Docker image.
+- The agent must have **Node.js**, **npm**, and network access for `npx playwright install`.
+- If system libraries for browsers are missing on Linux, install Playwright OS deps or use a Playwright base image for the agent.

@@ -12,29 +12,14 @@ pipeline {
       }
     }
 
-    stage("Run tests in Playwright Docker") {
+    stage("Run tests") {
       environment {
         CI = "true"
       }
       steps {
-        sh """
-          docker run --rm \
-            --ipc=host \
-            -e CI=true \
-            -v "${env.WORKSPACE}:/work" \
-            -w /work \
-            --entrypoint npm \
-            mcr.microsoft.com/playwright:v1.59.1-noble \
-            ci
-          docker run --rm \
-            --ipc=host \
-            -e CI=true \
-            -v "${env.WORKSPACE}:/work" \
-            -w /work \
-            --entrypoint npm \
-            mcr.microsoft.com/playwright:v1.59.1-noble \
-            test
-        """
+        sh "npm ci"
+        sh "npx playwright install"
+        sh "npm test"
       }
     }
   }
