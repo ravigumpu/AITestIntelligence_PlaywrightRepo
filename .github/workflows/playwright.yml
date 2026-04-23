@@ -1,12 +1,10 @@
 name: Playwright Tests
-
 on:
   push:
     branches: ["master"]
   pull_request:
     branches: ["master"]
   workflow_dispatch:
-
 jobs:
   test:
     timeout-minutes: 60
@@ -15,7 +13,6 @@ jobs:
       fail-fast: false
       matrix:
         node-version: [18, 20]
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,7 +30,93 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run Playwright tests
-        run: npm test
+        run: npm test -- --reporter=list,json
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-results.json
+        continue-on-error: true
+
+      - name: Send results to Failbot
+        if: always()
+        env:
+          FAILBOT_URL: ${{ secrets.FAILBOT_URL }}
+          FAILBOT_WEBHOOK_SECRET: ${{ secrets.FAILBOT_WEBHOOK_SECRET }}
+          NODE_VERSION: ${{ matrix.node-version }}
+        run: |
+          if [ ! -f playwright-results.json ]; then
+            echo "No results file found, skipping"
+            exit 0
+          fi
+          node -e "
+            const fs = require('fs');
+            const crypto = require('crypto');
+            const https = require('https');
+
+            const results = JSON.parse(fs.readFileSync('playwright-results.json', 'utf8'));
+            const failures = [];
+            let totalTests = 0;
+            let failedTests = 0;
+
+            function processSuite(suite) {
+              for (const spec of suite.specs || []) {
+                for (const test of spec.tests || []) {
+                  totalTests++;
+                  const failed = test.results?.some(r => r.status === 'failed' || r.status === 'timedOut');
+                  if (failed) {
+                    failedTests++;
+                    const failedResult = test.results.find(r => r.status === 'failed' || r.status === 'timedOut');
+                    failures.push({
+                      id: 'pw-' + Math.random().toString(36).slice(2),
+                      testName: spec.title,
+                      error: failedResult?.error?.message || 'Test failed',
+                      stackTrace: failedResult?.error?.stack || '',
+                      logs: (failedResult?.stderr || []).map(s => s.text).join('\n')
+                    });
+                  }
+                }
+              }
+              for (const child of suite.suites || []) {
+                processSuite(child);
+              }
+            }
+
+            for (const suite of results.suites || []) {
+              processSuite(suite);
+            }
+
+            const payload = JSON.stringify({
+              suiteName: 'Playwright Tests (Node ' + process.env.NODE_VERSION + ')',
+              totalTests,
+              failedTests,
+              duration: (results.stats?.duration || 0) + 'ms',
+              failures
+            });
+
+            const sig = 'sha256=' + crypto
+              .createHmac('sha256', process.env.FAILBOT_WEBHOOK_SECRET)
+              .update(payload)
+              .digest('hex');
+
+            const url = new URL(process.env.FAILBOT_URL + '/api/webhook/jenkins');
+
+            const req = https.request({
+              hostname: url.hostname,
+              path: url.pathname,
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': process.env.FAILBOT_WEBHOOK_SECRET,
+                'Content-Length': Buffer.byteLength(payload)
+              }
+            }, (res) => {
+              let body = '';
+              res.on('data', d => body += d);
+              res.on('end', () => console.log('Failbot:', res.statusCode, body));
+            });
+
+            req.on('error', e => console.error('Failbot error:', e.message));
+            req.write(payload);
+            req.end();
+          "
 
       - name: Upload Playwright report
         if: always()
