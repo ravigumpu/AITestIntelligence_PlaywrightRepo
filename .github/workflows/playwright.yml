@@ -58,22 +58,34 @@ jobs:
 
             function processSuite(suite) {
               for (const spec of suite.specs || []) {
-                for (const test of spec.tests || []) {
-                  totalTests++;
-                  const failed = test.results?.some(r => r.status === 'failed' || r.status === 'timedOut');
-                  if (failed) {
-                    failedTests++;
-                    const failedResult = test.results.find(r => r.status === 'failed' || r.status === 'timedOut');
-                    failures.push({
-                      id: 'pw-' + Math.random().toString(36).slice(2),
-                      testName: spec.title,
-                      error: failedResult?.error?.message || 'Test failed',
-                      stackTrace: failedResult?.error?.stack || '',
-                      logs: (failedResult?.stderr || []).map(s => s.text).join('\n')
-                    });
+                totalTests++;  // count spec once, not each test result
+                
+                // A spec failed if ANY of its test results failed
+                const specFailed = spec.tests?.some(t => 
+                  t.results?.some(r => r.status === 'failed' || r.status === 'timedOut')
+                );
+                
+                if (specFailed) {
+                  failedTests++;
+                  // Get the first failed result for error details
+                  let failedResult = null;
+                  for (const test of spec.tests || []) {
+                    failedResult = test.results?.find(r => 
+                      r.status === 'failed' || r.status === 'timedOut'
+                    );
+                    if (failedResult) break;
                   }
+                  
+                  failures.push({
+                    id: 'pw-' + Math.random().toString(36).slice(2),
+                    testName: spec.title,
+                    error: failedResult?.error?.message || 'Test failed',
+                    stackTrace: failedResult?.error?.stack || '',
+                    logs: (failedResult?.stderr || []).map(s => s.text).join('\n')
+                  });
                 }
               }
+              
               for (const child of suite.suites || []) {
                 processSuite(child);
               }
