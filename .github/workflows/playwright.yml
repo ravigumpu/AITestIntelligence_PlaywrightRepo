@@ -76,13 +76,15 @@ jobs:
                     if (failedResult) break;
                   }
                   
-                  failures.push({
-                    id: 'pw-' + Math.random().toString(36).slice(2),
-                    testName: spec.title,
-                    error: failedResult?.error?.message || 'Test failed',
-                    stackTrace: failedResult?.error?.stack || '',
-                    logs: (failedResult?.stderr || []).map(s => s.text).join('\n')
-                  });
+                  if (failures.length < 50) {
+                    failures.push({
+                      id: 'pw-' + Math.random().toString(36).slice(2),
+                      testName: spec.title,
+                      error: (failedResult?.error?.message || 'Test failed').slice(0, 500),
+                      stackTrace: (failedResult?.error?.stack || '').slice(0, 500),
+                      logs: ''
+                    });
+                  }
                 }
               }
               
