@@ -20,3 +20,10 @@ test("verify the title of the page", async ({ page }) => {
   await page.goto("https://playwright.dev/");
   await expect(page).toHaveTitle(/PlaywrightFAILBOT/);
 });
+test("get Started button navigates to intro page", async ({ page }) => {
+  await page.goto("https://playwright.dev/");
+  await page.getByRole("button", { name: "Get started" }).click();
+  await expect(page).toHaveTitle(/Playwright/);
+  await page.click("text=Get started");
+  await expect(page).toHaveTitle(/Introduction/);
+});
